@@ -1,0 +1,132 @@
+{
+  "posts": {
+    "enabled": true,
+    "max_scrolls": 6,
+    "urls": [
+      "https://www.linkedin.com/search/results/content/?keywords=desarrollador.java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+      "https://www.linkedin.com/search/results/content/?keywords=Estamos%20contratando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+      "https://www.linkedin.com/search/results/content/?keywords=buscamos%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+      "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+      "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+      "https://www.linkedin.com/search/results/content/?keywords=Vacante%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+      "https://www.linkedin.com/search/results/content/?keywords=buscando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D"
+    ]
+  },
+  "jobs": {
+    "enabled": true,
+    "keywords": [
+      "java",
+      "desarrollador java"
+    ],
+    "location": "",
+    "remote_only": false,
+    "hours": 24,
+    "max_pages": 2
+  },
+  "filters": {
+    "must_match": [
+      "\\bjava\\b(?!\\s*script)"
+    ],
+    "exclude": [],
+    "exclude_languages": [
+      "pt"
+    ],
+    "exclude_content": [
+      "(?<!semi\\s)(?<!semi-)(?<!semi)\\b(senior|sénior|sr)\\b"
+    ],
+    "exclude_content_unless": [
+      "\\b(junior|jr|ssr|semi[\\s-]?senior|semi[\\s-]?sr|semisenior|trainee|pasant[ií]a|entry[\\s-]?level|mid[\\s-]?level|sin experiencia|primer empleo|reci[eé]n (egresados?|graduados?))\\b"
+    ],
+    "hiring_signals": [
+      "buscamos",
+      "estamos buscando",
+      "contratando",
+      "estamos contratando",
+      "vacante",
+      "oportunidad laboral",
+      "oportunidad",
+      "hiring",
+      "we are hiring",
+      "we're hiring",
+      "búsqueda",
+      "busqueda",
+      "sumate",
+      "súmate",
+      "incorporar",
+      "postulate",
+      "postúlate",
+      "postularse",
+      "aplicá",
+      "aplica",
+      "envía tu cv",
+      "enviar cv",
+      "cv a",
+      "curriculum",
+      "remoto",
+      "remote",
+      "híbrido",
+      "hibrido",
+      "#job",
+      "#jobs",
+      "#empleo",
+      "#trabajo",
+      "desarrollador",
+      "developer",
+      "backend",
+      "spring"
+    ],
+    "seeker_signals": [
+      "busco trabajo",
+      "busco empleo",
+      "estoy buscando trabajo",
+      "estoy buscando empleo",
+      "en busca de trabajo",
+      "en búsqueda de nuevas oportunidades",
+      "en busqueda de nuevas oportunidades",
+      "buscando nuevas oportunidades",
+      "en búsqueda laboral",
+      "en busqueda laboral",
+      "búsqueda activa",
+      "busqueda activa",
+      "estoy en búsqueda",
+      "estoy en busqueda",
+      "me encuentro en búsqueda",
+      "me encuentro en busqueda",
+      "iniciando la búsqueda",
+      "mi primera oportunidad",
+      "mi primer empleo",
+      "mi primer trabajo",
+      "open to work",
+      "opentowork",
+      "abierto a nuevas oportunidades",
+      "abierta a nuevas oportunidades",
+      "roles a los que apunto",
+      "cuento con experiencia",
+      "cuento con más de",
+      "mi cv",
+      "adjunto mi cv",
+      "mi perfil",
+      "looking for a job",
+      "looking for new opportunities",
+      "seeking new opportunities",
+      "actively looking",
+      "available consultants",
+      "hotlist",
+      "c2c",
+      "corp to corp"
+    ],
+    "seeker_penalty": 4
+  },
+  "browser": {
+    "channels": [
+      "chrome",
+      "msedge",
+      "chromium"
+    ],
+    "profile_dir": "data/browser_profile",
+    "headless": false
+  },
+  "output": {
+    "open_report": true
+  }
+}

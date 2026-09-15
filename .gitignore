@@ -1,0 +1,12 @@
+# entorno
+.venv/
+__pycache__/
+*.pyc
+
+# datos generados: sesión de Chrome (cookies!), resultados, dumps
+data/
+
+# editores
+.idea/
+.vscode/
+*.swp
