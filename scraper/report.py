@@ -1,5 +1,6 @@
 """Genera el reporte HTML + JSON de una corrida."""
 import json
+from datetime import datetime
 from html import escape
 from pathlib import Path
 
@@ -16,6 +17,7 @@ h1 { font-size:22px; margin:0 0 4px; }
 .bar input[type=text] { flex:1; min-width:200px; padding:8px 12px; border-radius:8px;
        border:1px solid var(--line); background:var(--card); color:var(--txt); font-size:14px; }
 .bar label { color:var(--muted); font-size:13px; display:flex; gap:6px; align-items:center; }
+.bar select { padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--txt); font-size:13px; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
         padding:14px 16px; margin-bottom:12px; }
 .card.hidden { display:none; }
@@ -38,7 +40,7 @@ h1 { font-size:22px; margin:0 0 4px; }
 """
 
 JS = """
-const q = document.getElementById('q'), onlyNew = document.getElementById('onlyNew');
+const q = document.getElementById('q'), onlyNew = document.getElementById('onlyNew'), sortSel = document.getElementById('sort');
 function apply() {
   const s = q.value.toLowerCase();
   for (const c of document.querySelectorAll('.card')) {
@@ -47,7 +49,23 @@ function apply() {
     c.classList.toggle('hidden', !(okText && okNew));
   }
 }
+// Reordena las tarjetas dentro de cada sección. Las que no tienen fecha (ts=0) van al final.
+function sortCards() {
+  const mode = sortSel.value;
+  for (const sec of document.querySelectorAll('section')) {
+    const cards = Array.from(sec.querySelectorAll('.card'));
+    cards.sort((a, b) => {
+      const sa = +a.dataset.score, sb = +b.dataset.score, ta = +a.dataset.ts, tb = +b.dataset.ts;
+      return mode === 'recent' ? (tb - ta) || (sb - sa) : (sb - sa) || (tb - ta);
+    });
+    cards.forEach(c => sec.appendChild(c));
+  }
+  try { localStorage.setItem('sort', mode); } catch (e) {}
+}
+try { const saved = localStorage.getItem('sort'); if (saved) sortSel.value = saved; } catch (e) {}
 q.addEventListener('input', apply); onlyNew.addEventListener('change', apply);
+sortSel.addEventListener('change', sortCards);
+sortCards();
 document.querySelectorAll('.more').forEach(b => b.addEventListener('click', () => {
   const t = b.previousElementSibling; t.classList.toggle('open');
   b.textContent = t.classList.contains('open') ? 'Ver menos' : 'Ver más';
@@ -90,9 +108,21 @@ def _card(it: dict) -> str:
     if it.get("signals"):
         tags += " · Señales: " + ", ".join(e(s) for s in it["signals"])
 
+    # Hora: lo que mostró LinkedIn ("2 h") + la hora absoluta calculada ("16/09 12:12").
+    when = e(it.get("posted", ""))
+    ts = 0
+    if it.get("posted_at"):
+        try:
+            dt = datetime.fromisoformat(it["posted_at"])
+            ts = int(dt.timestamp() * 1000)
+            abs_txt = dt.strftime("%d/%m") if it.get("posted_precision") == "day" else dt.strftime("%d/%m %H:%M")
+            when = f"{when} · {abs_txt}" if when and when != abs_txt else abs_txt
+        except ValueError:
+            pass
+
     return f"""
-<div class="card" data-new="{1 if it.get('new') else 0}">
-  <div class="top">{badge}{new}<span class="sub">{e(it.get('posted', ''))}</span>
+<div class="card" data-new="{1 if it.get('new') else 0}" data-ts="{ts}" data-score="{it.get('score', 0)}">
+  <div class="top">{badge}{new}<span class="sub">{when}</span>
        <span class="score">puntaje {it.get('score', 0)}</span></div>
   <div class="title">{title}</div>
   <div class="sub">{sub}</div>
@@ -117,7 +147,7 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
     for name, group in (("Publicaciones", posts), ("Empleos", jobs)):
         if not group:
             continue
-        sections.append(f"<h2>{name} ({len(group)})</h2>" + "".join(_card(i) for i in group))
+        sections.append(f"<section><h2>{name} ({len(group)})</h2>" + "".join(_card(i) for i in group) + "</section>")
     body = "".join(sections) or '<div class="empty">No se encontró nada en esta corrida.</div>'
 
     html = f"""<!doctype html>
@@ -130,6 +160,12 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
 <div class="meta">{escape(run_info['date'])} · {len(posts)} publicaciones · {len(jobs)} empleos · {n_new} nuevos</div>
 <div class="bar">
   <input id="q" type="text" placeholder="Filtrar (empresa, tecnología, ciudad...)">
+  <label>Orden
+    <select id="sort">
+      <option value="score">más relevantes</option>
+      <option value="recent">más recientes</option>
+    </select>
+  </label>
   <label><input id="onlyNew" type="checkbox" {'checked' if n_new else ''}> Solo nuevos</label>
 </div>
 {body}

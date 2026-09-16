@@ -107,5 +107,7 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
         it["flags"] = flags
         kept.append(it)
 
-    kept.sort(key=lambda x: (-x["score"], x.get("posted", "")))
+    # Más puntaje primero; a igual puntaje, más reciente primero.
+    kept.sort(key=lambda x: x.get("posted_at") or "", reverse=True)
+    kept.sort(key=lambda x: -x["score"])
     return kept

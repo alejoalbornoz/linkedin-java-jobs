@@ -22,6 +22,7 @@ from scraper.jobs import scrape_jobs
 from scraper.posts import scrape_posts
 from scraper.report import write_report
 from scraper.storage import Seen
+from scraper.timeparse import annotate
 
 BASE = Path(__file__).resolve().parent
 
@@ -65,6 +66,7 @@ def main() -> int:
         if cfg["jobs"].get("enabled", True) and args.only != "posts":
             raw += scrape_jobs(browser, cfg["jobs"])
 
+    annotate(raw)  # "2 h" / "Hace 27 minutos" / "2026-09-16" -> posted_at absoluto
     items = filter_and_score(raw, cfg["filters"])
     for it in items:
         it["new"] = seen.is_new(it)

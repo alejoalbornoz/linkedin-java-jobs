@@ -24,8 +24,9 @@ trabajo en vez de ofrecerlo) y te deja un reporte ordenado por relevancia con el
 - **Puntaje**: señales de contratación suman ("buscamos", "vacante", "remoto"...), señales de
   candidato restan ("open to work", "mi cv"...), así las ofertas reales quedan arriba.
 - **Solo lo nuevo**: recuerda lo que ya te mostró y cada corrida reporta únicamente lo que no viste.
-- **Reporte HTML** autocontenido: buscador, filtro "solo nuevos", badges, link al post/empleo y al
-  perfil del autor. También un `.json` por corrida para procesar con otras herramientas.
+- **Reporte HTML** autocontenido: buscador, orden por relevancia o por fecha (más recientes primero),
+  filtro "solo nuevos", badges, link al post/empleo y al perfil del autor. También un `.json` por
+  corrida para procesar con otras herramientas.
 - **Ritmo humano**: pausas aleatorias, pocas páginas por corrida, navegador visible.
 - **Resistente a cambios de LinkedIn**: soporta la UI nueva (2026) y la vieja, y con `--debug`
   guarda screenshot + HTML de cada página para ajustar selectores rápido.
@@ -178,6 +179,7 @@ buscar-trabajo/
     ├── jobs.py          # sección Empleos con paginación
     ├── filters.py       # must_match / exclusiones / idioma / puntaje
     ├── lang.py          # detector de idioma es/pt/en sin dependencias
+    ├── timeparse.py     # "2 h" / "Hace 27 minutos" / "2026-09-16" -> hora absoluta (posted_at)
     ├── storage.py       # data/seen.json: qué ya se mostró
     └── report.py        # reporte HTML + JSON
 ```
@@ -228,6 +230,9 @@ Cómo está armado hoy (UI nueva de LinkedIn, 2026):
   (`main#workspace`); se scrollea ese contenedor y además se envía rueda del mouse, que es lo que
   dispara la carga infinita.
 - **Sesión**: se considera iniciada cuando existe la cookie `li_at`.
+- **Fechas**: LinkedIn solo muestra tiempos relativos ("2 h", "Hace 27 minutos"); se convierten a
+  hora absoluta usando el momento del scraping como referencia y quedan en `posted_at` (JSON) para
+  poder ordenar. En empleos el `<time>` trae solo la fecha, así que se prefiere el pie de la tarjeta.
 
 ## Aviso
 
