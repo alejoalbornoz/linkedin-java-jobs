@@ -1,32 +1,75 @@
 {
-  "posts": {
-    "enabled": true,
-    "max_scrolls": 6,
-    "urls": [
-      "https://www.linkedin.com/search/results/content/?keywords=desarrollador.java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-      "https://www.linkedin.com/search/results/content/?keywords=Estamos%20contratando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-      "https://www.linkedin.com/search/results/content/?keywords=buscamos%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-      "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-      "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-      "https://www.linkedin.com/search/results/content/?keywords=Vacante%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-      "https://www.linkedin.com/search/results/content/?keywords=buscando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D"
-    ]
-  },
-  "jobs": {
-    "enabled": true,
-    "keywords": [
-      "java",
-      "desarrollador java"
-    ],
-    "location": "",
-    "remote_only": false,
-    "hours": 24,
-    "max_pages": 2
-  },
+  "searches": [
+    {
+      "name": "Java",
+      "enabled": true,
+      "posts": {
+        "enabled": true,
+        "max_scrolls": 6,
+        "urls": [
+          "https://www.linkedin.com/search/results/content/?keywords=desarrollador.java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=Estamos%20contratando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=buscamos%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=Vacante%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=buscando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D"
+        ]
+      },
+      "jobs": {
+        "enabled": true,
+        "keywords": [
+          "java",
+          "desarrollador java"
+        ],
+        "location": "",
+        "remote_only": false,
+        "hours": 24,
+        "max_pages": 2
+      },
+      "filters": {
+        "must_match": [
+          "\\bjava\\b(?!\\s*script)"
+        ]
+      }
+    },
+    {
+      "name": "Soporte técnico",
+      "enabled": true,
+      "posts": {
+        "enabled": true,
+        "max_scrolls": 6,
+        "urls": [
+          "https://www.linkedin.com/search/results/content/?keywords=soporte%20t%C3%A9cnico&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=mesa%20de%20ayuda&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=estamos%20contratando%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=vacante%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=analista%20de%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20help%20desk&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D"
+        ]
+      },
+      "jobs": {
+        "enabled": true,
+        "keywords": [
+          "soporte técnico",
+          "mesa de ayuda",
+          "help desk",
+          "analista de soporte"
+        ],
+        "location": "",
+        "remote_only": false,
+        "hours": 24,
+        "max_pages": 2
+      },
+      "filters": {
+        "must_match": [
+          "soporte\\s+(t[eé]cnico|inform[aá]tico|it\\b|ti\\b|a\\s+usuarios?)|mesa\\s+de\\s+ayuda|help\\s?desk|service\\s?desk|technical\\s+support|it\\s+support|atenci[oó]n\\s+al\\s+usuario|analista\\s+de\\s+soporte|t[eé]cnico\\s+(en|de)\\s+(inform[aá]tica|sistemas|soporte)"
+        ]
+      }
+    }
+  ],
   "filters": {
-    "must_match": [
-      "\\bjava\\b(?!\\s*script)"
-    ],
     "exclude": [],
     "exclude_languages": [
       "pt"
@@ -88,10 +131,6 @@
       "en busqueda laboral",
       "búsqueda activa",
       "busqueda activa",
-      "estoy en búsqueda",
-      "estoy en busqueda",
-      "me encuentro en búsqueda",
-      "me encuentro en busqueda",
       "iniciando la búsqueda",
       "mi primera oportunidad",
       "mi primer empleo",
@@ -113,7 +152,14 @@
       "available consultants",
       "hotlist",
       "c2c",
-      "corp to corp"
+      "corp to corp",
+      "estoy en búsqueda de trabajo",
+      "estoy en búsqueda de empleo",
+      "estoy en búsqueda laboral",
+      "me encuentro en búsqueda de trabajo",
+      "me encuentro en búsqueda de empleo",
+      "me encuentro en búsqueda laboral",
+      "búsqueda laboral activa"
     ],
     "seeker_penalty": 4
   },

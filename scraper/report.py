@@ -4,6 +4,9 @@ from datetime import datetime
 from html import escape
 from pathlib import Path
 
+# Orden en que se muestran las secciones por idioma (y etiqueta visible).
+LANG_LABELS = {"es": "Español", "en": "Inglés", "unknown": "Sin determinar", "pt": "Portugués"}
+
 CSS = """
 :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --txt:#e6e8ee; --muted:#9aa3b2;
         --post:#3b82f6; --job:#10b981; --new:#f59e0b; }
@@ -20,7 +23,7 @@ h1 { font-size:22px; margin:0 0 4px; }
 .bar select { padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--txt); font-size:13px; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
         padding:14px 16px; margin-bottom:12px; }
-.card.hidden { display:none; }
+.card.hidden, section.hidden { display:none; }
 .top { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
 .badge { font-size:11px; font-weight:600; letter-spacing:.04em; padding:2px 8px; border-radius:999px; color:#fff; }
 .badge.post { background:var(--post); } .badge.job { background:var(--job); } .badge.new { background:var(--new); color:#000; }
@@ -40,15 +43,31 @@ h1 { font-size:22px; margin:0 0 4px; }
 """
 
 JS = """
-const q = document.getElementById('q'), onlyNew = document.getElementById('onlyNew'), sortSel = document.getElementById('sort');
+const q = document.getElementById('q'), onlyNew = document.getElementById('onlyNew'),
+      sortSel = document.getElementById('sort'), langSel = document.getElementById('lang'),
+      profSel = document.getElementById('profile');
 function apply() {
-  const s = q.value.toLowerCase();
+  const s = q.value.toLowerCase(), lang = langSel.value, prof = profSel.value;
   for (const c of document.querySelectorAll('.card')) {
     const okText = !s || c.innerText.toLowerCase().includes(s);
     const okNew = !onlyNew.checked || c.dataset.new === '1';
-    c.classList.toggle('hidden', !(okText && okNew));
+    const okLang = lang === 'all' || c.dataset.lang === lang;
+    const okProf = prof === 'all' || c.dataset.profile === prof;
+    c.classList.toggle('hidden', !(okText && okNew && okLang && okProf));
   }
+  // Ocultar las secciones que quedaron sin tarjetas visibles.
+  for (const sec of document.querySelectorAll('section')) {
+    sec.classList.toggle('hidden', !sec.querySelector('.card:not(.hidden)'));
+  }
+  try { localStorage.setItem('lang', lang); localStorage.setItem('profile', prof); } catch (e) {}
 }
+try {
+  const l = localStorage.getItem('lang'); if (l) langSel.value = l;
+  const p = localStorage.getItem('profile');
+  if (p && Array.from(profSel.options).some(o => o.value === p)) profSel.value = p;
+} catch (e) {}
+langSel.addEventListener('change', apply);
+profSel.addEventListener('change', apply);
 // Reordena las tarjetas dentro de cada sección. Las que no tienen fecha (ts=0) van al final.
 function sortCards() {
   const mode = sortSel.value;
@@ -121,7 +140,8 @@ def _card(it: dict) -> str:
             pass
 
     return f"""
-<div class="card" data-new="{1 if it.get('new') else 0}" data-ts="{ts}" data-score="{it.get('score', 0)}">
+<div class="card" data-new="{1 if it.get('new') else 0}" data-ts="{ts}" data-score="{it.get('score', 0)}"
+     data-lang="{e(it.get('lang') or 'unknown')}" data-profile="{e(it.get('profile', ''))}">
   <div class="top">{badge}{new}<span class="sub">{when}</span>
        <span class="score">puntaje {it.get('score', 0)}</span></div>
   <div class="title">{title}</div>
@@ -143,12 +163,29 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
     jobs = [i for i in items if i["source"] == "job"]
     n_new = sum(1 for i in items if i.get("new"))
 
+    # Una sección por búsqueda, fuente e idioma: Java · Publicaciones · Español, etc.
+    profiles = run_info.get("profiles") or list(dict.fromkeys(i.get("profile", "") for i in items))
     sections = []
-    for name, group in (("Publicaciones", posts), ("Empleos", jobs)):
-        if not group:
-            continue
-        sections.append(f"<section><h2>{name} ({len(group)})</h2>" + "".join(_card(i) for i in group) + "</section>")
+    for profile in profiles:
+        in_profile = [i for i in items if i.get("profile") == profile]
+        for name, src in (("Publicaciones", "post"), ("Empleos", "job")):
+            group = [i for i in in_profile if i["source"] == src]
+            for code, label in LANG_LABELS.items():
+                chunk = [i for i in group if (i.get("lang") or "unknown") == code]
+                if not chunk:
+                    continue
+                title = " · ".join(x for x in (escape(profile), name, label) if x)
+                sections.append(
+                    f'<section data-lang="{code}" data-profile="{escape(profile)}">'
+                    f"<h2>{title} ({len(chunk)})</h2>"
+                    + "".join(_card(i) for i in chunk) + "</section>"
+                )
     body = "".join(sections) or '<div class="empty">No se encontró nada en esta corrida.</div>'
+
+    profile_opts = "".join(f'<option value="{escape(p)}">{escape(p)}</option>' for p in profiles)
+
+    n_es = sum(1 for i in items if i.get("lang") == "es")
+    n_en = sum(1 for i in items if i.get("lang") == "en")
 
     html = f"""<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
@@ -157,9 +194,24 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
 <style>{CSS}</style></head>
 <body><div class="wrap">
 <h1>Ofertas Java en LinkedIn</h1>
-<div class="meta">{escape(run_info['date'])} · {len(posts)} publicaciones · {len(jobs)} empleos · {n_new} nuevos</div>
+<div class="meta">{escape(run_info['date'])} · {len(posts)} publicaciones · {len(jobs)} empleos · {n_new} nuevos
+     · {n_es} en español · {n_en} en inglés</div>
 <div class="bar">
   <input id="q" type="text" placeholder="Filtrar (empresa, tecnología, ciudad...)">
+  <label>Búsqueda
+    <select id="profile">
+      <option value="all">todas</option>
+      {profile_opts}
+    </select>
+  </label>
+  <label>Idioma
+    <select id="lang">
+      <option value="all">todos</option>
+      <option value="es">español</option>
+      <option value="en">inglés</option>
+      <option value="unknown">sin determinar</option>
+    </select>
+  </label>
   <label>Orden
     <select id="sort">
       <option value="score">más relevantes</option>

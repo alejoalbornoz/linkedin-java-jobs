@@ -1,7 +1,7 @@
 # buscar-trabajo
 
-> Buscador diario de ofertas laborales **Java** en LinkedIn: publicaciones + sección Empleos,
-> filtradas, puntuadas y presentadas en un reporte HTML con solo lo nuevo.
+> Buscador diario de ofertas laborales en LinkedIn: publicaciones + sección Empleos, por perfil
+> (Java, Soporte técnico…), filtradas, puntuadas y presentadas en un reporte HTML con solo lo nuevo.
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![Playwright](https://img.shields.io/badge/playwright-1.47+-green)
@@ -10,23 +10,28 @@
 Buscar trabajo en LinkedIn a mano implica repetir todos los días las mismas búsquedas de
 publicaciones ("buscamos java", "vacante java", "#hiring java"...) y recorrer la sección de empleos.
 Esta herramienta lo hace por vos: abre Chrome con tu sesión, recorre tus búsquedas de las últimas
-24 horas, descarta el ruido (JavaScript, posts en portugués, puestos Senior, gente que *busca*
-trabajo en vez de ofrecerlo) y te deja un reporte ordenado por relevancia con el link a cada oferta.
+24 horas, descarta el ruido (JavaScript cuando buscás Java, posts en portugués, puestos Senior,
+gente que *busca* trabajo en vez de ofrecerlo) y te deja un reporte ordenado por relevancia con el
+link a cada oferta. Viene con dos perfiles listos —**Java** y **Soporte técnico**— y podés agregar
+los que quieras.
 
 ## Características
 
 - **Dos fuentes**: búsqueda de *publicaciones* (`/search/results/content/`) y sección *Empleos*
   (`/jobs/search/`), ambas limitadas a las últimas 24 h.
+- **Varias búsquedas en paralelo**: definís perfiles con nombre (Java, Soporte técnico, lo que sea),
+  cada uno con sus URLs, keywords y filtros, y el reporte los separa en secciones.
 - **Sesión persistente**: te logueás una sola vez en una ventana de Chrome; las cookies quedan en
   un perfil propio y no vuelve a pedirte nada.
-- **Filtros configurables**: debe mencionar Java (no JavaScript), excluir idiomas (`pt` por defecto),
-  excluir por puesto (Senior/Sr por defecto, respetando "Semi Senior"/"SSR"), regex libre.
+- **Filtros configurables**: el post tiene que hablar realmente del perfil (Java y no JavaScript,
+  soporte y no cualquier mención al pasar), excluir idiomas (`pt` por defecto), excluir por puesto
+  (Senior/Sr por defecto, respetando "Semi Senior"/"SSR"), regex libre.
 - **Puntaje**: señales de contratación suman ("buscamos", "vacante", "remoto"...), señales de
   candidato restan ("open to work", "mi cv"...), así las ofertas reales quedan arriba.
 - **Solo lo nuevo**: recuerda lo que ya te mostró y cada corrida reporta únicamente lo que no viste.
-- **Reporte HTML** autocontenido: buscador, orden por relevancia o por fecha (más recientes primero),
-  filtro "solo nuevos", badges, link al post/empleo y al perfil del autor. También un `.json` por
-  corrida para procesar con otras herramientas.
+- **Reporte HTML** autocontenido: secciones separadas por búsqueda e idioma (español / inglés),
+  buscador, orden por relevancia o por fecha, filtro "solo nuevos", badges, link al post/empleo y al
+  perfil del autor. También un `.json` por corrida para procesar con otras herramientas.
 - **Ritmo humano**: pausas aleatorias, pocas páginas por corrida, navegador visible.
 - **Resistente a cambios de LinkedIn**: soporta la UI nueva (2026) y la vieja, y con `--debug`
   guarda screenshot + HTML de cada página para ajustar selectores rápido.
@@ -96,6 +101,7 @@ reporte en el navegador.
 |--------------------|-----------------------------------------------------------------|
 | `--only posts`     | solo publicaciones                                              |
 | `--only jobs`      | solo sección Empleos                                            |
+| `--search <nombre>`| correr solo esa búsqueda (ej. `--search soporte`)               |
 | `--all`            | incluir también lo ya visto en corridas anteriores              |
 | `--no-open`        | no abrir el reporte al terminar                                 |
 | `--debug`          | guardar screenshot + HTML de cada página en `data/debug/`       |
@@ -125,16 +131,35 @@ Salida típica en consola:
 
 ## Configuración
 
-Todo vive en [`config.json`](config.json).
+Todo vive en [`config.json`](config.json), organizado en **búsquedas** con nombre. Cada búsqueda
+tiene sus propias URLs, keywords y `must_match`; el resto de los filtros y la configuración del
+navegador se comparten:
 
-### `posts` — búsqueda de publicaciones
+```json
+{
+  "searches": [
+    { "name": "Java",            "enabled": true, "posts": {…}, "jobs": {…}, "filters": {…} },
+    { "name": "Soporte técnico", "enabled": true, "posts": {…}, "jobs": {…}, "filters": {…} }
+  ],
+  "filters": { … compartidos … },
+  "browser": { … },
+  "output":  { … }
+}
+```
+
+Para agregar un perfil nuevo, copiá un bloque de `searches`, cambiale el `name`, las URLs, las
+keywords y el `must_match`. Para apagar uno sin borrarlo: `"enabled": false`. Para correr uno solo:
+`--search <nombre>`. En el reporte cada búsqueda queda en su propia sección y en el selector
+"Búsqueda".
+
+### `searches[].posts` — búsqueda de publicaciones
 
 | Clave         | Descripción                                                                  |
 |---------------|------------------------------------------------------------------------------|
 | `urls`        | URLs de búsqueda de contenido de LinkedIn (armalas en la web con los filtros que quieras y pegalas acá) |
 | `max_scrolls` | cuántas veces scrollea cada búsqueda para cargar más resultados (6)          |
 
-### `jobs` — sección Empleos
+### `searches[].jobs` — sección Empleos
 
 | Clave         | Descripción                                                                  |
 |---------------|------------------------------------------------------------------------------|
@@ -146,11 +171,14 @@ Todo vive en [`config.json`](config.json).
 
 ### `filters` — qué se descarta y cómo se puntúa
 
+Se definen una vez a nivel raíz y valen para todas las búsquedas; lo que una búsqueda ponga en su
+propio `filters` pisa la clave correspondiente (en la práctica, `must_match`).
+
 | Clave                     | Descripción |
 |---------------------------|-------------|
-| `must_match`              | regex que el texto de las publicaciones debe cumplir. Por defecto `\bjava\b(?!\s*script)`: la palabra *java* pero no *javascript*. Se mira solo el texto del post, no el cargo del autor. |
+| `must_match`              | regex que el texto de las publicaciones debe cumplir; **se define por búsqueda**. En Java: `\bjava\b(?!\s*script)` (la palabra *java* pero no *javascript*). En Soporte técnico: *soporte técnico/informático*, *mesa de ayuda*, *help desk*, *service desk*, *analista de soporte*, *técnico en sistemas*… Se mira solo el texto del post, no el cargo del autor. |
 | `exclude`                 | regex para descartar mirando **todo** el item (autor, empresa, ubicación, texto). Ej. `"Brasil"`. |
-| `exclude_languages`       | idiomas a descartar entre `es`, `pt`, `en` (por defecto `["pt"]`). Detección por palabras distintivas en [`scraper/lang.py`](scraper/lang.py); si no puede decidir, conserva. |
+| `exclude_languages`       | idiomas a descartar entre `es`, `pt`, `en` (por defecto `["pt"]`). Detección por palabras distintivas en [`scraper/lang.py`](scraper/lang.py); si no puede decidir, conserva. Los idiomas que **no** descartás quedan separados en secciones dentro del reporte. |
 | `exclude_content`         | regex para descartar por el **puesto** (por defecto Senior / Sr / Sénior, ignorando "Semi Senior", "Semi Sr", "Semisenior"). Se evalúa en el título del empleo o en las primeras `exclude_content_head_lines` (2) líneas del post. Si aparece más abajo (posts con varias vacantes) se conserva con el badge *MENCIONA SENIOR* y un punto menos. |
 | `exclude_content_unless`  | si en la misma línea aparece algo de esta lista (Junior, Jr, SSR, Semi Senior, Trainee, "Sr/Ssr"…) no se descarta: son varios niveles. |
 | `hiring_signals`          | términos que suman un punto cada uno ("buscamos", "vacante", "remoto"…). Se buscan como palabra completa. |
@@ -169,8 +197,8 @@ Todo vive en [`config.json`](config.json).
 
 ```
 buscar-trabajo/
-├── main.py              # CLI: orquesta scraping → filtros → reporte
-├── config.json          # búsquedas, filtros, navegador
+├── main.py              # CLI: recorre las búsquedas → filtros → reporte
+├── config.json          # búsquedas (Java, Soporte técnico…), filtros, navegador
 ├── run.bat              # atajo para Windows (doble clic)
 ├── requirements.txt
 └── scraper/
@@ -178,7 +206,7 @@ buscar-trabajo/
     ├── posts.py         # búsqueda de publicaciones (UI nueva + fallback UI vieja)
     ├── jobs.py          # sección Empleos con paginación
     ├── filters.py       # must_match / exclusiones / idioma / puntaje
-    ├── lang.py          # detector de idioma es/pt/en sin dependencias
+    ├── lang.py          # detector de idioma es/pt/en sin dependencias (texto largo y títulos)
     ├── timeparse.py     # "2 h" / "Hace 27 minutos" / "2026-09-16" -> hora absoluta (posted_at)
     ├── storage.py       # data/seen.json: qué ya se mostró
     └── report.py        # reporte HTML + JSON
@@ -230,6 +258,12 @@ Cómo está armado hoy (UI nueva de LinkedIn, 2026):
   (`main#workspace`); se scrollea ese contenedor y además se envía rueda del mouse, que es lo que
   dispara la carga infinita.
 - **Sesión**: se considera iniciada cuando existe la cookie `li_at`.
+- **Idioma**: en publicaciones se detecta con palabras funcionales (*el/los/con* vs *the/and/with*);
+  en empleos solo hay un título de pocas palabras, así que se recurre al vocabulario del puesto
+  (*Desarrollador/Analista* vs *Developer/Engineer*), ignorando tecnicismos que se usan igual en
+  ambos idiomas (*software*, *full stack*, *Java*). Un título como "ServiceNow" queda como
+  *sin determinar*, en su propia sección. Ojo: es el idioma del **título**, no necesariamente el
+  del aviso completo.
 - **Fechas**: LinkedIn solo muestra tiempos relativos ("2 h", "Hace 27 minutos"); se convierten a
   hora absoluta usando el momento del scraping como referencia y quedan en `posted_at` (JSON) para
   poder ordenar. En empleos el `<time>` trae solo la fecha, así que se prefiere el pie de la tarjeta.

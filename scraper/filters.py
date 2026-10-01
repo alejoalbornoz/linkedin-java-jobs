@@ -5,7 +5,7 @@ dict que se recibe), así main.py puede mostrar un resumen de por qué se descar
 """
 import re
 
-from .lang import detect
+from .lang import detect, detect_short
 
 
 def _compile(patterns):
@@ -58,8 +58,9 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
             it["dropped"] = "regex exclude"
             continue
 
-        # 2) Idioma (posts: texto; empleos: título). "unknown" no se descarta.
-        it["lang"] = detect(content)
+        # 2) Idioma. En posts hay texto de sobra; en empleos solo el título, así que se
+        #    usa el detector de textos cortos. "unknown" no se descarta nunca.
+        it["lang"] = detect(content) if it["source"] == "post" else detect_short(content)
         if it["lang"] in exclude_langs:
             it["dropped"] = f"idioma {it['lang']}"
             continue
@@ -68,7 +69,7 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
         #    que lo diga solo el cargo del autor). Los empleos vienen de una búsqueda
         #    "java", así que los dejamos pasar aunque el título no lo diga.
         if it["source"] == "post" and must and not any(r.search(content) for r in must):
-            it["dropped"] = "no menciona java"
+            it["dropped"] = "no coincide con el perfil"
             continue
 
         # 4) Exclusión por contenido del puesto (ej. Senior). Se mira el ENCABEZADO
