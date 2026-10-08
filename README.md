@@ -26,12 +26,16 @@ los que quieras.
 - **Filtros configurables**: el post tiene que hablar realmente del perfil (Java y no JavaScript,
   soporte y no cualquier mención al pasar), excluir idiomas (`pt` por defecto), excluir por puesto
   (Senior/Sr por defecto, respetando "Semi Senior"/"SSR"), regex libre.
-- **Puntaje**: señales de contratación suman ("buscamos", "vacante", "remoto"...), señales de
-  candidato restan ("open to work", "mi cv"...), así las ofertas reales quedan arriba.
+- **Cómo postularse, a un clic**: extrae del texto el mail, el link de postulación y el teléfono, y
+  los muestra como botones en la tarjeta, en vez de tener que abrir y leer cada aviso.
+- **Puntaje**: las señales de *intención de contratar* ("buscamos", "vacante", "postulate") pesan el
+  doble que las de contexto ("remoto", "backend"), y las de candidato restan ("open to work",
+  "mi cv"), así las ofertas reales quedan arriba y lo que no es una oferta ni aparece.
 - **Solo lo nuevo**: recuerda lo que ya te mostró y cada corrida reporta únicamente lo que no viste.
 - **Reporte HTML** autocontenido: secciones separadas por búsqueda e idioma (español / inglés),
-  buscador, orden por relevancia o por fecha, filtro "solo nuevos", badges, link al post/empleo y al
-  perfil del autor. También un `.json` por corrida para procesar con otras herramientas.
+  buscador, orden por relevancia o por fecha, filtros "solo nuevos" y "con contacto", badges, link al
+  post/empleo y al perfil del autor. También un `.json` por corrida para procesar con otras
+  herramientas.
 - **Ritmo humano**: pausas aleatorias, pocas páginas por corrida, navegador visible.
 - **Resistente a cambios de LinkedIn**: soporta la UI nueva (2026) y la vieja, y con `--debug`
   guarda screenshot + HTML de cada página para ajustar selectores rápido.
@@ -181,7 +185,9 @@ propio `filters` pisa la clave correspondiente (en la práctica, `must_match`).
 | `exclude_languages`       | idiomas a descartar entre `es`, `pt`, `en` (por defecto `["pt"]`). Detección por palabras distintivas en [`scraper/lang.py`](scraper/lang.py); si no puede decidir, conserva. Los idiomas que **no** descartás quedan separados en secciones dentro del reporte. |
 | `exclude_content`         | regex para descartar por el **puesto** (por defecto Senior / Sr / Sénior, ignorando "Semi Senior", "Semi Sr", "Semisenior"). Se evalúa en el título del empleo o en las primeras `exclude_content_head_lines` (2) líneas del post. Si aparece más abajo (posts con varias vacantes) se conserva con el badge *MENCIONA SENIOR* y un punto menos. |
 | `exclude_content_unless`  | si en la misma línea aparece algo de esta lista (Junior, Jr, SSR, Semi Senior, Trainee, "Sr/Ssr"…) no se descarta: son varios niveles. |
-| `hiring_signals`          | términos que suman un punto cada uno ("buscamos", "vacante", "remoto"…). Se buscan como palabra completa. |
+| `intent_signals`          | señales de que **están ofreciendo trabajo** ("buscamos", "vacante", "estamos contratando", "postulate", "envía tu cv"…). Suman `intent_weight` (2) cada una y se buscan como palabra completa. |
+| `require_intent`          | `true` (por defecto): una publicación sin ninguna señal de intención se descarta — es una nota, marketing o "empecé un nuevo puesto", no una oferta. Los empleos están exentos: ya vienen de la sección Empleos. |
+| `context_signals`         | palabras que *pintan* un aviso pero no implican que contraten ("remoto", "backend", "spring", "requisitos", "beneficios"…). Suman `context_weight` (1), la mitad que las de intención, para que un post técnico no compita con una oferta real. |
 | `seeker_signals`          | frases típicas de quien *busca* trabajo ("open to work", "mi cv"…); cada una resta `seeker_penalty` puntos (4) y agrega el badge *BUSCA EMPLEO*. |
 
 ### `browser` y `output`
@@ -208,6 +214,7 @@ buscar-trabajo/
     ├── filters.py       # must_match / exclusiones / idioma / puntaje
     ├── lang.py          # detector de idioma es/pt/en sin dependencias (texto largo y títulos)
     ├── timeparse.py     # "2 h" / "Hace 27 minutos" / "2026-09-16" -> hora absoluta (posted_at)
+    ├── contacts.py      # saca del texto el mail, el link de postulación y el teléfono
     ├── storage.py       # data/seen.json: qué ya se mostró
     └── report.py        # reporte HTML + JSON
 ```

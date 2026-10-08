@@ -22,6 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 from scraper.browser import Browser
+from scraper.contacts import annotate as annotate_contacts
 from scraper.filters import filter_and_score
 from scraper.jobs import scrape_jobs
 from scraper.posts import scrape_posts
@@ -97,7 +98,8 @@ def main() -> int:
             # Filtramos cada búsqueda con sus propios criterios (must_match propio,
             # el resto heredado de los filtros compartidos).
             filters = {**cfg.get("filters", {}), **search.get("filters", {})}
-            annotate(found)  # "2 h" / "Hace 27 minutos" / "2026-09-16" -> posted_at absoluto
+            annotate(found)           # "2 h" / "Hace 27 minutos" -> posted_at absoluto
+            annotate_contacts(found)  # mail / link de postulación / teléfono del texto
             for it in filter_and_score(found, filters):
                 key = (it["source"], it["id"])
                 if key in by_key:                    # ya lo trajo otra búsqueda

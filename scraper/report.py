@@ -36,6 +36,12 @@ h1 { font-size:22px; margin:0 0 4px; }
 .text:not(.open)::after { content:""; position:absolute; left:0; right:0; bottom:0; height:3em;
         background:linear-gradient(transparent,var(--card)); }
 .more { background:none; border:none; color:var(--post); cursor:pointer; padding:0; font-size:13px; }
+.contacts { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.chip { display:inline-flex; align-items:center; gap:5px; font-size:12.5px; padding:4px 10px;
+        border-radius:999px; border:1px solid var(--line); background:#1f2430; color:var(--txt);
+        text-decoration:none; }
+a.chip:hover { border-color:var(--post); }
+.chip.apply { background:var(--post); border-color:var(--post); color:#fff; font-weight:600; }
 .links { display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; font-size:13px; }
 .links a { color:var(--post); text-decoration:none; } .links a:hover { text-decoration:underline; }
 .tags { color:var(--muted); font-size:12px; margin-top:6px; }
@@ -45,7 +51,7 @@ h1 { font-size:22px; margin:0 0 4px; }
 JS = """
 const q = document.getElementById('q'), onlyNew = document.getElementById('onlyNew'),
       sortSel = document.getElementById('sort'), langSel = document.getElementById('lang'),
-      profSel = document.getElementById('profile');
+      profSel = document.getElementById('profile'), onlyContact = document.getElementById('onlyContact');
 function apply() {
   const s = q.value.toLowerCase(), lang = langSel.value, prof = profSel.value;
   for (const c of document.querySelectorAll('.card')) {
@@ -53,7 +59,8 @@ function apply() {
     const okNew = !onlyNew.checked || c.dataset.new === '1';
     const okLang = lang === 'all' || c.dataset.lang === lang;
     const okProf = prof === 'all' || c.dataset.profile === prof;
-    c.classList.toggle('hidden', !(okText && okNew && okLang && okProf));
+    const okContact = !onlyContact.checked || c.dataset.contact === '1';
+    c.classList.toggle('hidden', !(okText && okNew && okLang && okProf && okContact));
   }
   // Ocultar las secciones que quedaron sin tarjetas visibles.
   for (const sec of document.querySelectorAll('section')) {
@@ -83,6 +90,7 @@ function sortCards() {
 }
 try { const saved = localStorage.getItem('sort'); if (saved) sortSel.value = saved; } catch (e) {}
 q.addEventListener('input', apply); onlyNew.addEventListener('change', apply);
+onlyContact.addEventListener('change', apply);
 sortSel.addEventListener('change', sortCards);
 sortCards();
 document.querySelectorAll('.more').forEach(b => b.addEventListener('click', () => {
@@ -121,10 +129,25 @@ def _card(it: dict) -> str:
     if it.get("author_url"):
         links.append(f'<a href="{e(it["author_url"])}" target="_blank">Perfil del autor ↗</a>')
 
+    # Cómo postularse: lo que estaba enterrado en el texto, como botones.
+    chips = []
+    for link in it.get("contacts", {}).get("links", []):
+        label = "🔗 Postularme" if link["apply"] else "🔗 Link del aviso"
+        css = "chip apply" if link["apply"] else "chip"
+        chips.append(f'<a class="{css}" href="{e(link["url"])}" target="_blank" '
+                     f'rel="noopener">{label}</a>')
+    for mail in it.get("contacts", {}).get("emails", []):
+        chips.append(f'<a class="chip" href="mailto:{e(mail)}">✉ {e(mail)}</a>')
+    for tel in it.get("contacts", {}).get("phones", []):
+        chips.append(f'<span class="chip">📱 {e(tel)}</span>')
+    contacts_html = f'<div class="contacts">{"".join(chips)}</div>' if chips else ""
+
     tags = "Búsqueda: " + ", ".join(e(s) for s in it.get("searches", []))
     if it.get("lang") and it["lang"] != "unknown":
         tags += f" · Idioma: {e(it['lang'])}"
-    if it.get("signals"):
+    if it.get("intent"):
+        tags += " · Intención: " + ", ".join(e(s) for s in it["intent"][:6])
+    elif it.get("signals"):  # reportes generados antes de separar las señales
         tags += " · Señales: " + ", ".join(e(s) for s in it["signals"])
 
     # Hora: lo que mostró LinkedIn ("2 h") + la hora absoluta calculada ("16/09 12:12").
@@ -141,12 +164,14 @@ def _card(it: dict) -> str:
 
     return f"""
 <div class="card" data-new="{1 if it.get('new') else 0}" data-ts="{ts}" data-score="{it.get('score', 0)}"
-     data-lang="{e(it.get('lang') or 'unknown')}" data-profile="{e(it.get('profile', ''))}">
+     data-lang="{e(it.get('lang') or 'unknown')}" data-profile="{e(it.get('profile', ''))}"
+     data-contact="{1 if chips else 0}">
   <div class="top">{badge}{new}<span class="sub">{when}</span>
        <span class="score">puntaje {it.get('score', 0)}</span></div>
   <div class="title">{title}</div>
   <div class="sub">{sub}</div>
   {text_html}
+  {contacts_html}
   <div class="links">{''.join(links)}</div>
   <div class="tags">{tags}</div>
 </div>"""
@@ -219,6 +244,7 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
     </select>
   </label>
   <label><input id="onlyNew" type="checkbox" {'checked' if n_new else ''}> Solo nuevos</label>
+  <label><input id="onlyContact" type="checkbox"> Con contacto</label>
 </div>
 {body}
 </div><script>{JS}</script></body></html>"""

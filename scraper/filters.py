@@ -43,7 +43,15 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
     exclude_content_unless = _compile(cfg.get("exclude_content_unless", []))
     head_lines = int(cfg.get("exclude_content_head_lines", 2))
     exclude_langs = set(cfg.get("exclude_languages", []))
-    signals = _compile_words(cfg.get("hiring_signals", []))
+    # Dos listas distintas: "intención de contratar" (buscamos, vacante, postulate) pesa
+    # el doble que el "contexto" del aviso (remoto, backend, experiencia), que por sí solo
+    # aparece también en posts técnicos o de marketing que no ofrecen trabajo.
+    # Si solo hay `hiring_signals` (config viejo) se usa esa lista como contexto.
+    intent = _compile_words(cfg.get("intent_signals", []))
+    context = _compile_words(cfg.get("context_signals") or cfg.get("hiring_signals", []))
+    intent_weight = int(cfg.get("intent_weight", 2))
+    context_weight = int(cfg.get("context_weight", 1))
+    require_intent = bool(cfg.get("require_intent", False)) and bool(intent)
     seeker = _compile_words(cfg.get("seeker_signals", []))
     seeker_penalty = int(cfg.get("seeker_penalty", 4))
 
@@ -94,16 +102,28 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
                     flags.append(f"menciona {m.group().strip()}")
                     break
 
-        hits = [w for w, r in signals if r.search(blob)]
+        intent_hits = [w for w, r in intent if r.search(content)]
+        context_hits = [w for w, r in context if r.search(blob)]
         seeker_hits = [w for w, r in seeker if r.search(content)]
-        score = len(hits) - seeker_penalty * len(seeker_hits) - len(flags)
+
+        # 5) Una publicación sin ninguna señal de que estén ofreciendo trabajo casi
+        #    siempre es otra cosa (una nota, marketing, "empecé un nuevo puesto").
+        #    Los empleos vienen de la sección Empleos: ahí no hace falta pedirlo.
+        if require_intent and it["source"] == "post" and not intent_hits:
+            it["dropped"] = "sin intención de contratar"
+            continue
+
+        score = (intent_weight * len(intent_hits) + context_weight * len(context_hits)
+                 - seeker_penalty * len(seeker_hits) - len(flags))
         if it["source"] == "job":
             score += 3 if any(r.search(it.get("title", "")) for r in must) else 1
         else:
             score += 2
 
         it["score"] = score
-        it["signals"] = hits
+        it["intent"] = intent_hits
+        it["context"] = context_hits
+        it["signals"] = intent_hits + context_hits   # compatibilidad con reportes viejos
         it["seeker_signals"] = seeker_hits
         it["flags"] = flags
         kept.append(it)
