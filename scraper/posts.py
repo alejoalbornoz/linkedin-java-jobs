@@ -25,6 +25,51 @@ RESULTS_READY = (
 NO_RESULTS_MARKERS = ("no se han encontrado resultados", "no results found", "no hay resultados",
                       "sin resultados", "no se encontraron")
 
+# LinkedIn corta la búsqueda de la cuenta si detecta demasiada actividad seguida.
+# Cuando aparece esto no sirve seguir: todas las búsquedas van a volver vacías.
+THROTTLE_MARKERS = (
+    "tráfico de búsqueda inusual", "trafico de busqueda inusual",
+    "se ha pausado la actividad de búsqueda", "se ha pausado la actividad de busqueda",
+    "unusual search traffic", "search activity on your account has been paused",
+    "we've paused your search activity",
+)
+
+
+class SearchThrottled(RuntimeError):
+    """LinkedIn pausó la búsqueda de la cuenta: hay que frenar y reintentar más tarde.
+
+    `partial` trae lo que se alcanzó a juntar antes del corte, para no perderlo.
+    """
+
+    def __init__(self, msg, partial=None):
+        super().__init__(msg)
+        self.partial = partial or []
+
+
+THROTTLE_MSG = (
+    "LinkedIn pausó la búsqueda de tu cuenta por actividad inusual.\n"
+    "  No es un error de la app ni un bloqueo de la cuenta: es temporal y se destraba\n"
+    "  en un rato (suele ser menos de una hora).\n"
+    "  · Los empleos NO se ven afectados: usan el endpoint público. Corré `--only jobs`.\n"
+    "  · Para la próxima: bajá `posts.max_urls_per_run` o `posts.max_scrolls` en config.json,\n"
+    "    o corré un perfil por vez con `--search <nombre>`."
+)
+
+
+def check_throttle(browser) -> None:
+    """Lanza SearchThrottled si LinkedIn muestra el cartel de búsqueda pausada.
+
+    Se chequea apenas carga la página: si no, habría que esperar el timeout del
+    selector de resultados (20 s) en cada búsqueda para darse cuenta.
+    """
+    try:
+        body = (browser.page.evaluate("() => document.body.innerText") or "").lower()
+    except Exception:
+        return
+    if any(m in body for m in THROTTLE_MARKERS):
+        browser.dump("throttle", force=True)
+        raise SearchThrottled(THROTTLE_MSG)
+
 # Expande todos los "…más" / "…see more" de los posts.
 EXPAND_JS = r"""
 () => {
@@ -239,10 +284,14 @@ def scrape_posts(browser: Browser, cfg: dict) -> list[dict]:
         print(f"\n[Publicaciones] «{label}»")
         try:
             browser.goto(url)
+            check_throttle(browser)      # no esperamos el timeout para darnos cuenta
             try:
                 page.wait_for_selector(RESULTS_READY, timeout=20_000)
             except PWTimeout:
                 body = (page.evaluate("() => document.body.innerText") or "").lower()
+                if any(m in body for m in THROTTLE_MARKERS):
+                    browser.dump(f"throttle_{label}", force=True)
+                    raise SearchThrottled(THROTTLE_MSG)
                 if any(m in body for m in NO_RESULTS_MARKERS):
                     print("   0 publicaciones (LinkedIn no devolvió resultados)")
                 else:
@@ -283,11 +332,16 @@ def scrape_posts(browser: Browser, cfg: dict) -> list[dict]:
                 else:
                     it["searches"] = [label]
                     found[it["id"]] = it
+        except SearchThrottled as e:
+            # No tiene sentido seguir con las demás búsquedas, pero lo ya juntado sirve.
+            e.partial = list(found.values())
+            print(f"\n[Publicaciones] Rescatadas antes del corte: {len(e.partial)}")
+            raise
         except Exception as e:
             print(f"   ✗ Error en esta búsqueda: {e}")
             browser.dump(f"error_posts_{label}", force=True)
 
-        pause(3, 6)  # respiro entre búsquedas
+        pause(*cfg.get("pause_between", (8, 16)))  # respiro entre búsquedas
 
     print(f"\n[Publicaciones] Total únicas: {len(found)}")
     return list(found.values())

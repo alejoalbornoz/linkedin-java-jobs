@@ -25,10 +25,10 @@ from scraper.browser import Browser
 from scraper.contacts import annotate as annotate_contacts
 from scraper.filters import filter_and_score
 from scraper.jobs import scrape_jobs
-from scraper.posts import scrape_posts
+from scraper.posts import SearchThrottled, scrape_posts
 from scraper.report import write_report
-from scraper.storage import Seen
-from scraper.timeparse import annotate
+from scraper.storage import Rotation, Seen
+from scraper.timeparse import annotate, assign_periods
 
 BASE = Path(__file__).resolve().parent
 
@@ -75,11 +75,13 @@ def main() -> int:
 
     data_dir = BASE / "data"
     seen = Seen(data_dir / "seen.json")
+    rotation = Rotation(data_dir / "rotation.json")
     started = datetime.now()
     stamp = started.strftime("%Y-%m-%d_%H%M")
 
     raw: list[dict] = []
     by_key: dict[tuple, dict] = {}   # (fuente, id) -> item, para no repetir entre búsquedas
+    throttled = False                # LinkedIn cortó la búsqueda a mitad de camino
     with Browser(cfg["browser"], BASE, headless=headless, debug=args.debug) as browser:
         browser.ensure_logged_in()
         if args.login:
@@ -91,14 +93,35 @@ def main() -> int:
             print(f"\n{'#' * 60}\n#  Búsqueda: {name}\n{'#' * 60}")
             found: list[dict] = []
             if search.get("posts", {}).get("enabled", True) and args.only != "jobs":
-                found += scrape_posts(browser, search["posts"])
+                if throttled:
+                    # Ya nos pausaron antes: no tiene sentido volver a intentar.
+                    print("\n[Publicaciones] salteadas: LinkedIn tiene la búsqueda pausada.")
+                else:
+                    # Solo un tramo de las URLs por corrida; la próxima sigue desde ahí.
+                    posts_cfg = dict(search["posts"])
+                    todas = posts_cfg["urls"]
+                    posts_cfg["urls"] = rotation.take(name, todas, posts_cfg.get("max_urls_per_run"))
+                    if len(posts_cfg["urls"]) < len(todas):
+                        print(f"   (rotación: {len(posts_cfg['urls'])} de {len(todas)} búsquedas en esta corrida)")
+                    try:
+                        found += scrape_posts(browser, posts_cfg)
+                    except SearchThrottled as e:
+                        # Seguimos con los empleos y armamos el reporte con lo que haya,
+                        # en vez de perder toda la corrida.
+                        found += e.partial
+                        print(f"\n✗ {e}\n")
+                        throttled = True
+            # Los empleos van por el endpoint público: no usan la búsqueda de la cuenta,
+            # así que se siguen trayendo aunque LinkedIn haya pausado las publicaciones.
             if search.get("jobs", {}).get("enabled", True) and args.only != "posts":
-                found += scrape_jobs(browser, search["jobs"])
+                print("\n[Empleos]")
+                found += scrape_jobs(search["jobs"])
 
             # Filtramos cada búsqueda con sus propios criterios (must_match propio,
             # el resto heredado de los filtros compartidos).
             filters = {**cfg.get("filters", {}), **search.get("filters", {})}
             annotate(found)           # "2 h" / "Hace 27 minutos" -> posted_at absoluto
+            assign_periods(found, cfg.get("periods", []), started)
             annotate_contacts(found)  # mail / link de postulación / teléfono del texto
             for it in filter_and_score(found, filters):
                 key = (it["source"], it["id"])
@@ -116,12 +139,14 @@ def main() -> int:
         it["new"] = seen.is_new(it)
     seen.mark(items, started.isoformat(timespec="seconds"))
     seen.save()
+    rotation.save()
 
     to_report = items if args.all else [i for i in items if i["new"]]
 
     html_path, json_path = write_report(
         to_report, data_dir / "results", stamp,
-        {"date": started.strftime("%d/%m/%Y %H:%M"), "profiles": [s["name"] for s in searches]},
+        {"date": started.strftime("%d/%m/%Y %H:%M"), "profiles": [s["name"] for s in searches],
+         "periods": cfg.get("periods", [])},
     )
 
     # Resumen en consola
@@ -138,9 +163,16 @@ def main() -> int:
             langs = Counter(i.get("lang") for i in grp)
             detalle = ", ".join(f"{n} {l}" for l, n in langs.most_common())
             print(f"  {search['name']}: {len(grp)} en el reporte ({detalle})")
+    por_periodo = Counter(i.get("period") for i in to_report)
+    if por_periodo:
+        print("  Por periodo: " + " · ".join(f"{k}: {n}" for k, n in por_periodo.most_common()))
+    por_ubic = Counter(i.get("location_fit") or "sin ubicación" for i in to_report)
+    print("  Por ubicación: " + " · ".join(f"{k}: {n}" for k, n in por_ubic.most_common()))
     print(f"  En el reporte: {n_posts} publicaciones, {n_jobs} empleos")
     print(f"  Reporte: {html_path}")
     print(f"  JSON:    {json_path}")
+    if throttled:
+        print("  ⚠ LinkedIn pausó la búsqueda a mitad de la corrida: faltan publicaciones.")
     print("=" * 60)
     for it in to_report[:15]:
         who = it.get("author") if it["source"] == "post" else f"{it.get('title')} — {it.get('company')}"

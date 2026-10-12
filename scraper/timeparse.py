@@ -45,6 +45,31 @@ def parse_posted(text: str, ref: datetime):
     return None, None
 
 
+def assign_periods(items: list[dict], periods: list[dict], ref: datetime | None = None) -> None:
+    """Clasifica cada item en la primera ventana que le corresponda por antigüedad.
+
+    Se scrapea una sola vez con la ventana más amplia (una semana) y acá se separa en
+    "Últimas 24 h" / "Última semana": pedirle las 24 h a LinkedIn por separado devolvería
+    exactamente los mismos avisos (ya vienen ordenados del más nuevo al más viejo).
+    """
+    if not periods:
+        return
+    ref = ref or datetime.now()
+    ultimo = periods[-1]["name"]
+    for it in items:
+        it["period"] = ultimo
+        if not it.get("posted_at"):
+            continue
+        try:
+            edad = (ref - datetime.fromisoformat(it["posted_at"])).total_seconds() / 3600
+        except ValueError:
+            continue
+        for p in periods:
+            if edad <= float(p["max_hours"]):
+                it["period"] = p["name"]
+                break
+
+
 def annotate(items: list[dict]) -> None:
     """Agrega `posted_at` (ISO) y `posted_precision` a cada item, in place."""
     for it in items:

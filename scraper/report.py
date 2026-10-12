@@ -28,6 +28,8 @@ h1 { font-size:22px; margin:0 0 4px; }
 .badge { font-size:11px; font-weight:600; letter-spacing:.04em; padding:2px 8px; border-radius:999px; color:#fff; }
 .badge.post { background:var(--post); } .badge.job { background:var(--job); } .badge.new { background:var(--new); color:#000; }
 .badge.seeker { background:#4b5563; }
+.badge.home { background:#0ea5e9; } .badge.remote { background:#8b5cf6; }
+.badge.skills { background:#14b8a6; }
 .score { color:var(--muted); font-size:12px; margin-left:auto; }
 .title { font-weight:600; font-size:16px; }
 .sub { color:var(--muted); font-size:13px; }
@@ -51,30 +53,39 @@ a.chip:hover { border-color:var(--post); }
 JS = """
 const q = document.getElementById('q'), onlyNew = document.getElementById('onlyNew'),
       sortSel = document.getElementById('sort'), langSel = document.getElementById('lang'),
-      profSel = document.getElementById('profile'), onlyContact = document.getElementById('onlyContact');
+      profSel = document.getElementById('profile'), onlyContact = document.getElementById('onlyContact'),
+      periodSel = document.getElementById('period');
 function apply() {
   const s = q.value.toLowerCase(), lang = langSel.value, prof = profSel.value;
+  const maxPeriod = +periodSel.value;   // acumulativo: la semana incluye las 24 h
   for (const c of document.querySelectorAll('.card')) {
     const okText = !s || c.innerText.toLowerCase().includes(s);
     const okNew = !onlyNew.checked || c.dataset.new === '1';
     const okLang = lang === 'all' || c.dataset.lang === lang;
     const okProf = prof === 'all' || c.dataset.profile === prof;
     const okContact = !onlyContact.checked || c.dataset.contact === '1';
-    c.classList.toggle('hidden', !(okText && okNew && okLang && okProf && okContact));
+    const okPeriod = +c.dataset.period <= maxPeriod;
+    c.classList.toggle('hidden', !(okText && okNew && okLang && okProf && okContact && okPeriod));
   }
   // Ocultar las secciones que quedaron sin tarjetas visibles.
   for (const sec of document.querySelectorAll('section')) {
     sec.classList.toggle('hidden', !sec.querySelector('.card:not(.hidden)'));
   }
-  try { localStorage.setItem('lang', lang); localStorage.setItem('profile', prof); } catch (e) {}
+  try {
+    localStorage.setItem('lang', lang); localStorage.setItem('profile', prof);
+    localStorage.setItem('period', periodSel.value);
+  } catch (e) {}
 }
 try {
   const l = localStorage.getItem('lang'); if (l) langSel.value = l;
   const p = localStorage.getItem('profile');
   if (p && Array.from(profSel.options).some(o => o.value === p)) profSel.value = p;
+  const pe = localStorage.getItem('period');
+  if (pe && Array.from(periodSel.options).some(o => o.value === pe)) periodSel.value = pe;
 } catch (e) {}
 langSel.addEventListener('change', apply);
 profSel.addEventListener('change', apply);
+periodSel.addEventListener('change', apply);
 // Reordena las tarjetas dentro de cada sección. Las que no tienen fecha (ts=0) van al final.
 function sortCards() {
   const mode = sortSel.value;
@@ -101,8 +112,9 @@ apply();
 """
 
 
-def _card(it: dict) -> str:
+def _card(it: dict, period_idx: dict | None = None) -> str:
     e = escape
+    pidx = (period_idx or {}).get(it.get("period"), 0)
     is_post = it["source"] == "post"
     badge = '<span class="badge post">PUBLICACIÓN</span>' if is_post else '<span class="badge job">EMPLEO</span>'
     new = '<span class="badge new">NUEVO</span>' if it.get("new") else ""
@@ -110,6 +122,17 @@ def _card(it: dict) -> str:
         new += '<span class="badge seeker" title="Parece alguien buscando trabajo, no una oferta">BUSCA EMPLEO</span>'
     for flag in it.get("flags", []):
         new += f'<span class="badge seeker" title="Aparece más abajo en el texto, no en el título del puesto">{e(flag).upper()}</span>'
+    fit = it.get("location_fit")
+    if fit == "Argentina":
+        new += '<span class="badge home" title="En Argentina: sirve presencial, híbrido o remoto">🇦🇷 ARGENTINA</span>'
+    elif fit == "remoto":
+        new += '<span class="badge remote" title="Remoto">REMOTO</span>'
+    elif fit == "exterior no remoto":
+        new += '<span class="badge seeker" title="En el exterior y no parece remoto">EXTERIOR</span>'
+    if it.get("skill_points"):
+        tecnologias = ", ".join(w for hits in it.get("skills", {}).values() for w in hits[:6])
+        new += (f'<span class="badge skills" title="Coincide con tu CV: {e(tecnologias)}">'
+                f'CV +{it["skill_points"]}</span>')
     if is_post:
         title = e(it.get("author") or "(autor desconocido)")
         sub = e(it.get("headline", ""))
@@ -145,6 +168,8 @@ def _card(it: dict) -> str:
     tags = "Búsqueda: " + ", ".join(e(s) for s in it.get("searches", []))
     if it.get("lang") and it["lang"] != "unknown":
         tags += f" · Idioma: {e(it['lang'])}"
+    if it.get("skills"):
+        tags += " · Tu stack: " + ", ".join(e(w) for hits in it["skills"].values() for w in hits[:8])
     if it.get("intent"):
         tags += " · Intención: " + ", ".join(e(s) for s in it["intent"][:6])
     elif it.get("signals"):  # reportes generados antes de separar las señales
@@ -165,7 +190,7 @@ def _card(it: dict) -> str:
     return f"""
 <div class="card" data-new="{1 if it.get('new') else 0}" data-ts="{ts}" data-score="{it.get('score', 0)}"
      data-lang="{e(it.get('lang') or 'unknown')}" data-profile="{e(it.get('profile', ''))}"
-     data-contact="{1 if chips else 0}">
+     data-contact="{1 if chips else 0}" data-period="{pidx}">
   <div class="top">{badge}{new}<span class="sub">{when}</span>
        <span class="score">puntaje {it.get('score', 0)}</span></div>
   <div class="title">{title}</div>
@@ -190,6 +215,7 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
 
     # Una sección por búsqueda, fuente e idioma: Java · Publicaciones · Español, etc.
     profiles = run_info.get("profiles") or list(dict.fromkeys(i.get("profile", "") for i in items))
+    period_idx = {p["name"]: i for i, p in enumerate(run_info.get("periods", []))}
     sections = []
     for profile in profiles:
         in_profile = [i for i in items if i.get("profile") == profile]
@@ -203,11 +229,15 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
                 sections.append(
                     f'<section data-lang="{code}" data-profile="{escape(profile)}">'
                     f"<h2>{title} ({len(chunk)})</h2>"
-                    + "".join(_card(i) for i in chunk) + "</section>"
+                    + "".join(_card(i, period_idx) for i in chunk) + "</section>"
                 )
     body = "".join(sections) or '<div class="empty">No se encontró nada en esta corrida.</div>'
 
     profile_opts = "".join(f'<option value="{escape(p)}">{escape(p)}</option>' for p in profiles)
+    # Los periodos son acumulativos: elegir "Última semana" también muestra lo de hoy.
+    # El más corto (24 h) queda seleccionado por defecto.
+    periods = [p["name"] for p in run_info.get("periods", [])]
+    period_opts = "".join(f'<option value="{i}">{escape(p)}</option>' for i, p in enumerate(periods))
 
     n_es = sum(1 for i in items if i.get("lang") == "es")
     n_en = sum(1 for i in items if i.get("lang") == "en")
@@ -227,6 +257,11 @@ def write_report(items: list[dict], out_dir: Path, stamp: str, run_info: dict) -
     <select id="profile">
       <option value="all">todas</option>
       {profile_opts}
+    </select>
+  </label>
+  <label>Periodo
+    <select id="period">
+      {period_opts}
     </select>
   </label>
   <label>Idioma

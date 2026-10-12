@@ -24,16 +24,52 @@ def _blob(item: dict) -> str:
 
 
 def _content(item: dict) -> str:
-    """Solo el contenido de la oferta: texto del post, o título del empleo.
+    """Solo el contenido de la oferta: texto del post, o título + descripción del empleo.
     (No incluye el cargo del autor ni la empresa, para no filtrar por lo que dice el recruiter.)"""
     if item["source"] == "post":
         return (item.get("text") or "") + " " + (item.get("raw") or "")
-    return item.get("title", "")
+    return " ".join(x for x in (item.get("title", ""), item.get("description", "")) if x)
 
 
-def _head_lines(content: str, n: int) -> list[str]:
-    """Encabezado del contenido: las primeras `n` líneas no vacías."""
-    return [l.strip() for l in content.splitlines() if l.strip()][:n]
+def _role_lines(item: dict, n: int) -> list[str]:
+    """Dónde buscar el rol del puesto (para excluir Senior y similares).
+
+    En empleos es el título y nada más: si se mirara también la descripción, un
+    "junior" mencionado al pasar 2000 caracteres más abajo salvaría a un Senior.
+    En publicaciones son las primeras `n` líneas, que es donde va el puesto.
+    """
+    if item["source"] == "job":
+        return [item.get("title", "")]
+    texto = (item.get("text") or "") + " " + (item.get("raw") or "")
+    return [l.strip() for l in texto.splitlines() if l.strip()][:n]
+
+
+def _location_fit(item: dict, text: str, rules: dict) -> tuple[int, str]:
+    """Puntos por ubicación y una etiqueta.
+
+    En Argentina sirve cualquier modalidad; en el resto de los países, solo remoto.
+    Para los empleos se usa la ubicación real y la modalidad deducida del aviso;
+    para las publicaciones, lo que diga el texto.
+    """
+    if not rules:
+        return 0, ""
+    home = any(t in text for t in rules.get("home_terms", []))
+    remote = any(t in text for t in rules.get("remote_terms", []))
+    foreign = any(t in text for t in rules.get("foreign_terms", []))
+
+    if item["source"] == "job":
+        # El scraper ya sabe de qué país vino y si el aviso es remoto.
+        home = home or (item.get("target", "").startswith("Argentina"))
+        remote = remote or item.get("modality") == "remoto"
+        foreign = foreign or (item.get("remote_target") and not home)
+
+    if home:
+        return int(rules.get("home_bonus", 5)), "Argentina"
+    if remote:
+        return int(rules.get("remote_bonus", 3)), "remoto"
+    if foreign:
+        return -int(rules.get("foreign_onsite_penalty", 8)), "exterior no remoto"
+    return 0, ""
 
 
 def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
@@ -54,6 +90,17 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
     require_intent = bool(cfg.get("require_intent", False)) and bool(intent)
     seeker = _compile_words(cfg.get("seeker_signals", []))
     seeker_penalty = int(cfg.get("seeker_penalty", 4))
+    drop_seekers = bool(cfg.get("drop_seekers", False))
+    # Afinidad con el CV: cada nivel de tecnologías pesa distinto y se topea para que
+    # un aviso que lista 20 tecnologías no se coma el ranking.
+    skills = {tier: _compile_words(terms) for tier, terms in cfg.get("cv_skills", {}).items()}
+    skill_weights = cfg.get("cv_weights", {})
+    max_per_tier = int(cfg.get("cv_max_per_tier", 4))
+    level = _compile_words(cfg.get("level_fit", []))
+    level_bonus = int(cfg.get("level_fit_bonus", 3))
+    loc_rules = cfg.get("location_fit", {})
+    drop_foreign = {"job": bool(loc_rules.get("drop_foreign_onsite_jobs", False)),
+                    "post": bool(loc_rules.get("drop_foreign_onsite_posts", False))}
 
     kept = []
     for it in items:
@@ -91,7 +138,7 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
             bad_line = any(
                 any(r.search(line) for r in exclude_content)
                 and not any(r.search(line) for r in exclude_content_unless)
-                for line in _head_lines(content, head_lines)
+                for line in _role_lines(it, head_lines)
             )
             if bad_line:
                 it["dropped"] = "contenido excluido"
@@ -113,14 +160,49 @@ def filter_and_score(items: list[dict], cfg: dict) -> list[dict]:
             it["dropped"] = "sin intención de contratar"
             continue
 
+        # 6) Ubicación: Argentina (cualquier modalidad) > remoto > exterior presencial.
+        #    En empleos la ubicación y la modalidad son confiables, así que lo que no
+        #    sirve se descarta; en publicaciones solo se penaliza (la detección es por texto).
+        loc_text = (blob if it["source"] == "post" else
+                    f"{it.get('location','')} {it.get('title','')} {it.get('description','')}").lower()
+        loc_points, loc_label = _location_fit(it, loc_text, loc_rules)
+        if drop_foreign[it["source"]] and loc_label == "exterior no remoto":
+            it["dropped"] = "exterior no remoto"
+            continue
+
+        # 7) Afinidad con el CV: tecnologías por nivel, topeadas por nivel.
+        skill_hits, skill_points = {}, 0
+        for tier, terms in skills.items():
+            hits = [w for w, r in terms if r.search(content)]
+            if hits:
+                skill_hits[tier] = hits
+                skill_points += int(skill_weights.get(tier, 1)) * min(len(hits), max_per_tier)
+
+        level_hits = [w for w, r in level if r.search(content)
+                      or (it["source"] == "job" and r.search(it.get("seniority", "")))]
+
+        # Si el que publica es un candidato, la afinidad con el CV juega en contra:
+        # tiene tu mismo stack justamente porque busca lo mismo que vos. Se anula el
+        # bonus de tecnologías para que no compita con las ofertas reales.
+        if seeker_hits:
+            skill_points = 0
+
         score = (intent_weight * len(intent_hits) + context_weight * len(context_hits)
+                 + skill_points + (level_bonus if level_hits else 0) + loc_points
                  - seeker_penalty * len(seeker_hits) - len(flags))
+        if seeker_hits and drop_seekers:
+            it["dropped"] = "parece alguien buscando trabajo"
+            continue
         if it["source"] == "job":
             score += 3 if any(r.search(it.get("title", "")) for r in must) else 1
         else:
             score += 2
 
         it["score"] = score
+        it["skills"] = skill_hits
+        it["skill_points"] = skill_points
+        it["level_fit"] = level_hits
+        it["location_fit"] = loc_label
         it["intent"] = intent_hits
         it["context"] = context_hits
         it["signals"] = intent_hits + context_hits   # compatibilidad con reportes viejos

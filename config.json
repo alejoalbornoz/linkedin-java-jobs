@@ -1,20 +1,35 @@
 {
+  "periods": [
+    {
+      "name": "Últimas 24 h",
+      "max_hours": 24
+    },
+    {
+      "name": "Última semana",
+      "max_hours": 168
+    }
+  ],
   "searches": [
     {
       "name": "Java",
       "enabled": true,
       "posts": {
         "enabled": true,
-        "max_scrolls": 6,
+        "max_scrolls": 4,
         "urls": [
-          "https://www.linkedin.com/search/results/content/?keywords=desarrollador.java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=Estamos%20contratando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=buscamos%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=Vacante%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=buscando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D"
-        ]
+          "https://www.linkedin.com/search/results/content/?keywords=desarrollador.java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=Estamos%20contratando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=buscamos%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=Vacante%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=buscando%20java&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D"
+        ],
+        "pause_between": [
+          10,
+          20
+        ],
+        "max_urls_per_run": 4
       },
       "jobs": {
         "enabled": true,
@@ -22,10 +37,37 @@
           "java",
           "desarrollador java"
         ],
-        "location": "",
-        "remote_only": false,
-        "hours": 24,
-        "max_pages": 2
+        "targets": [
+          {
+            "name": "Argentina",
+            "geoId": "100446943"
+          },
+          {
+            "name": "España",
+            "geoId": "105646813",
+            "remote_only": true,
+            "keywords_extra": "remoto",
+            "max_pages": 1
+          },
+          {
+            "name": "México",
+            "geoId": "103323778",
+            "remote_only": true,
+            "keywords_extra": "remoto",
+            "max_pages": 1
+          },
+          {
+            "name": "Estados Unidos",
+            "geoId": "103644278",
+            "remote_only": true,
+            "keywords_extra": "remote",
+            "max_pages": 1
+          }
+        ],
+        "hours": 168,
+        "max_pages": 2,
+        "fetch_details": true,
+        "max_details": 80
       },
       "filters": {
         "must_match": [
@@ -38,29 +80,60 @@
       "enabled": true,
       "posts": {
         "enabled": true,
-        "max_scrolls": 6,
+        "max_scrolls": 4,
         "urls": [
-          "https://www.linkedin.com/search/results/content/?keywords=soporte%20t%C3%A9cnico&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=mesa%20de%20ayuda&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=estamos%20contratando%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=vacante%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=analista%20de%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D",
-          "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20help%20desk&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-24h%22%5D"
-        ]
+          "https://www.linkedin.com/search/results/content/?keywords=soporte%20t%C3%A9cnico&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=mesa%20de%20ayuda&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=estamos%20contratando%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=vacante%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=oportunidad%20laboral%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=analista%20de%20soporte&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D",
+          "https://www.linkedin.com/search/results/content/?keywords=%23hiring%20help%20desk&origin=FACETED_SEARCH&sortBy=%5B%22date_posted%22%5D&datePosted=%5B%22past-week%22%5D"
+        ],
+        "pause_between": [
+          10,
+          20
+        ],
+        "max_urls_per_run": 4
       },
       "jobs": {
         "enabled": true,
         "keywords": [
           "soporte técnico",
           "mesa de ayuda",
-          "help desk",
-          "analista de soporte"
+          "help desk"
         ],
-        "location": "",
-        "remote_only": false,
-        "hours": 24,
-        "max_pages": 2
+        "targets": [
+          {
+            "name": "Argentina",
+            "geoId": "100446943"
+          },
+          {
+            "name": "España",
+            "geoId": "105646813",
+            "remote_only": true,
+            "keywords_extra": "remoto",
+            "max_pages": 1
+          },
+          {
+            "name": "México",
+            "geoId": "103323778",
+            "remote_only": true,
+            "keywords_extra": "remoto",
+            "max_pages": 1
+          },
+          {
+            "name": "Estados Unidos",
+            "geoId": "103644278",
+            "remote_only": true,
+            "keywords_extra": "remote",
+            "max_pages": 1
+          }
+        ],
+        "hours": 168,
+        "max_pages": 2,
+        "fetch_details": true,
+        "max_details": 80
       },
       "filters": {
         "must_match": [
@@ -235,8 +308,235 @@
       "me encuentro en búsqueda laboral",
       "búsqueda laboral activa"
     ],
-    "seeker_penalty": 4,
-    "exclude_content_head_lines": 2
+    "seeker_penalty": 6,
+    "exclude_content_head_lines": 2,
+    "cv_skills": {
+      "core": [
+        "java",
+        "spring boot",
+        "springboot",
+        "spring",
+        "spring data",
+        "spring security",
+        "spring cloud",
+        "microservicio",
+        "microservicios",
+        "microservices",
+        "backend",
+        "back-end",
+        "api rest",
+        "rest api",
+        "apis rest",
+        "restful",
+        "jpa",
+        "hibernate",
+        "jwt",
+        "oauth2",
+        "java 17",
+        "java 21"
+      ],
+      "stack": [
+        "postgresql",
+        "postgres",
+        "kafka",
+        "rabbitmq",
+        "docker",
+        "docker compose",
+        "junit",
+        "mockito",
+        "testcontainers",
+        "wiremock",
+        "flyway",
+        "sql",
+        "cqrs",
+        "saga",
+        "outbox",
+        "idempotencia",
+        "idempotency",
+        "event-driven",
+        "orientada a eventos",
+        "mensajería",
+        "micrometer",
+        "prometheus",
+        "zipkin",
+        "observabilidad",
+        "github actions",
+        "ci/cd",
+        "maven",
+        "gradle",
+        "git",
+        "api gateway",
+        "sistemas distribuidos",
+        "arquitectura hexagonal",
+        "solid",
+        "tdd"
+      ],
+      "extra": [
+        "python",
+        "node.js",
+        "nodejs",
+        "node",
+        "redis",
+        "mongodb",
+        "mysql",
+        "sql server",
+        "aws",
+        "ec2",
+        "s3",
+        "rds",
+        "kubernetes",
+        "k8s",
+        "linux",
+        "scrum",
+        "ágil",
+        "agile",
+        "inglés",
+        "english"
+      ]
+    },
+    "cv_weights": {
+      "core": 3,
+      "stack": 2,
+      "extra": 1
+    },
+    "cv_max_per_tier": 4,
+    "level_fit": [
+      "junior",
+      "jr",
+      "ssr",
+      "semi senior",
+      "semi-senior",
+      "semisenior",
+      "trainee",
+      "sin experiencia",
+      "primer empleo",
+      "recién graduado",
+      "recien graduado",
+      "recién recibido",
+      "entry level",
+      "nivel inicial",
+      "estudiante avanzado",
+      "pasantía",
+      "pasantia",
+      "practicante"
+    ],
+    "level_fit_bonus": 3,
+    "location_fit": {
+      "home_terms": [
+        "argentina",
+        "argentino",
+        "argentina.",
+        "buenos aires",
+        "caba",
+        "capital federal",
+        "amba",
+        "gran buenos aires",
+        "gba",
+        "zárate",
+        "zarate",
+        "campana",
+        "escobar",
+        "rosario",
+        "la plata",
+        "mar del plata",
+        "córdoba capital",
+        "mendoza",
+        "tucumán"
+      ],
+      "home_bonus": 10,
+      "remote_terms": [
+        "remoto",
+        "remota",
+        "remote",
+        "100% remoto",
+        "full remote",
+        "fully remote",
+        "teletrabajo",
+        "home office",
+        "trabajo a distancia",
+        "work from home",
+        "deslocalizado"
+      ],
+      "remote_bonus": 4,
+      "foreign_terms": [
+        "méxico",
+        "mexico",
+        "cdmx",
+        "guadalajara",
+        "monterrey",
+        "querétaro",
+        "puebla",
+        "colombia",
+        "bogotá",
+        "bogota",
+        "medellín",
+        "medellin",
+        "cali",
+        "barranquilla",
+        "chile",
+        "santiago de chile",
+        "perú",
+        "peru",
+        "lima",
+        "ecuador",
+        "quito",
+        "guayaquil",
+        "bolivia",
+        "paraguay",
+        "asunción",
+        "uruguay",
+        "montevideo",
+        "venezuela",
+        "caracas",
+        "costa rica",
+        "san josé",
+        "panamá",
+        "guatemala",
+        "el salvador",
+        "honduras",
+        "república dominicana",
+        "españa",
+        "madrid",
+        "barcelona",
+        "valencia",
+        "sevilla",
+        "bilbao",
+        "málaga",
+        "zaragoza",
+        "estados unidos",
+        "eeuu",
+        "ee.uu.",
+        "usa",
+        "united states",
+        "texas",
+        "california",
+        "florida",
+        "new jersey",
+        "nueva jersey",
+        "new york",
+        "nueva york",
+        "chicago",
+        "brasil",
+        "brazil",
+        "são paulo",
+        "sao paulo",
+        "rio de janeiro",
+        "india",
+        "bangalore",
+        "hyderabad",
+        "pune",
+        "canadá",
+        "canada",
+        "reino unido",
+        "londres",
+        "portugal",
+        "lisboa"
+      ],
+      "foreign_onsite_penalty": 15,
+      "drop_foreign_onsite_jobs": true,
+      "drop_foreign_onsite_posts": false
+    },
+    "drop_seekers": false
   },
   "browser": {
     "channels": [
@@ -245,7 +545,11 @@
       "chromium"
     ],
     "profile_dir": "data/browser_profile",
-    "headless": false
+    "headless": false,
+    "pause_page": [
+      4,
+      8
+    ]
   },
   "output": {
     "open_report": true

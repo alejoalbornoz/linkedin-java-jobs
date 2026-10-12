@@ -17,8 +17,8 @@ los que quieras.
 
 ## Características
 
-- **Dos fuentes**: búsqueda de *publicaciones* (`/search/results/content/`) y sección *Empleos*
-  (`/jobs/search/`), ambas limitadas a las últimas 24 h.
+- **Dos fuentes**: búsqueda de *publicaciones* (`/search/results/content/`) y sección *Empleos*,
+  con dos ventanas de tiempo en el mismo reporte: **últimas 24 h** y **última semana**.
 - **Varias búsquedas en paralelo**: definís perfiles con nombre (Java, Soporte técnico, lo que sea),
   cada uno con sus URLs, keywords y filtros, y el reporte los separa en secciones.
 - **Sesión persistente**: te logueás una sola vez en una ventana de Chrome; las cookies quedan en
@@ -28,9 +28,11 @@ los que quieras.
   (Senior/Sr por defecto, respetando "Semi Senior"/"SSR"), regex libre.
 - **Cómo postularse, a un clic**: extrae del texto el mail, el link de postulación y el teléfono, y
   los muestra como botones en la tarjeta, en vez de tener que abrir y leer cada aviso.
-- **Puntaje**: las señales de *intención de contratar* ("buscamos", "vacante", "postulate") pesan el
-  doble que las de contexto ("remoto", "backend"), y las de candidato restan ("open to work",
-  "mi cv"), así las ofertas reales quedan arriba y lo que no es una oferta ni aparece.
+- **Puntaje a medida de tu CV**: suma por tus tecnologías (Java/Spring Boot pesan más que AWS o
+  Python), por el nivel que te sirve (junior/SSR) y por ubicación — Argentina en cualquier
+  modalidad primero, después remoto; el exterior presencial se descarta o se hunde. Además las
+  señales de *intención de contratar* pesan el doble que las de contexto, y las de candidato
+  ("open to work") restan.
 - **Solo lo nuevo**: recuerda lo que ya te mostró y cada corrida reporta únicamente lo que no viste.
 - **Reporte HTML** autocontenido: secciones separadas por búsqueda e idioma (español / inglés),
   buscador, orden por relevancia o por fecha, filtros "solo nuevos" y "con contacto", badges, link al
@@ -141,6 +143,10 @@ navegador se comparten:
 
 ```json
 {
+  "periods": [
+    { "name": "Últimas 24 h",  "max_hours": 24 },
+    { "name": "Última semana", "max_hours": 168 }
+  ],
   "searches": [
     { "name": "Java",            "enabled": true, "posts": {…}, "jobs": {…}, "filters": {…} },
     { "name": "Soporte técnico", "enabled": true, "posts": {…}, "jobs": {…}, "filters": {…} }
@@ -150,6 +156,16 @@ navegador se comparten:
   "output":  { … }
 }
 ```
+
+### `periods` — las dos ventanas de tiempo
+
+Se scrapea una sola vez con la ventana más amplia (una semana) y cada resultado se clasifica en la
+primera ventana que le corresponda por antigüedad. En el reporte son el selector **Periodo**, que es
+acumulativo: "Últimas 24 h" muestra solo lo de hoy, "Última semana" muestra todo.
+
+Se hace así a propósito: LinkedIn devuelve los resultados del más nuevo al más viejo, así que pedirle
+las 24 h por separado traería exactamente los mismos avisos que ya vienen al pedir la semana —
+sería el doble de scrapeo para los mismos datos.
 
 Para agregar un perfil nuevo, copiá un bloque de `searches`, cambiale el `name`, las URLs, las
 keywords y el `must_match`. Para apagar uno sin borrarlo: `"enabled": false`. Para correr uno solo:
@@ -161,17 +177,43 @@ keywords y el `must_match`. Para apagar uno sin borrarlo: `"enabled": false`. Pa
 | Clave         | Descripción                                                                  |
 |---------------|------------------------------------------------------------------------------|
 | `urls`        | URLs de búsqueda de contenido de LinkedIn (armalas en la web con los filtros que quieras y pegalas acá) |
-| `max_scrolls` | cuántas veces scrollea cada búsqueda para cargar más resultados (6)          |
+| `max_scrolls`      | cuántas veces scrollea cada búsqueda para cargar más resultados (4)   |
+| `max_urls_per_run` | cuántas de las `urls` usa cada corrida (4). La siguiente sigue desde donde quedó: en 2 corridas se cubren todas, haciendo la mitad de búsquedas por vez. |
+| `pause_between`    | segundos de espera entre búsquedas (`[10, 20]`, al azar en ese rango)  |
 
 ### `searches[].jobs` — sección Empleos
 
 | Clave         | Descripción                                                                  |
 |---------------|------------------------------------------------------------------------------|
-| `keywords`    | keywords a buscar (`["java", "desarrollador java"]`)                         |
-| `location`    | país/ciudad (`"Argentina"`, `"Latinoamérica"`…). Vacío = ubicación de tu perfil |
-| `remote_only` | `true` para solo remotos                                                     |
-| `hours`       | ventana de tiempo en horas (24)                                              |
-| `max_pages`   | páginas de 25 resultados por keyword (2)                                     |
+| `keywords`       | keywords a buscar (`["java", "desarrollador java"]`)                      |
+| `targets`        | ubicaciones donde buscar, cada una con su `geoId` y opcionalmente `remote_only`. Por defecto: **Argentina** (presencial, híbrido o remoto) y **España / México / Estados Unidos** solo remoto. |
+| `hours`          | ventana de tiempo en horas (168 = una semana; los periodos la subdividen)  |
+| `max_pages`      | páginas de 10 resultados por keyword y ubicación (2)                       |
+| `fetch_details`  | `true`: abre cada aviso para traer la descripción completa, el nivel de antigüedad y deducir la modalidad. Sin esto los empleos se puntúan solo por el título. |
+| `max_details`    | tope de avisos a los que se les trae el detalle por corrida (80). Se priorizan los de ubicaciones donde solo sirve el remoto: sin la descripción no se puede saber si lo son. |
+
+Cada ubicación acepta además su propio `max_pages` (las del exterior usan 1, Argentina 2).
+
+El ritmo de los pedidos **se autorregula**: arranca en 1 segundo entre pedidos, cada `429 Too Many
+Requests` duplica la espera (hasta 12 s) y cada tanda de respuestas buenas la baja de a poco. Las
+pausas fijas no alcanzaban: el endpoint tolera ritmos muy distintos según el momento. Si aun así
+una página falla tres veces seguidas, se saltea esa tanda y la corrida sigue.
+
+Cada `target` se ve así:
+
+```json
+{ "name": "España", "geoId": "105646813", "remote_only": true, "keywords_extra": "remoto" }
+```
+
+`geoId` identifica la ubicación en LinkedIn. Los que vienen configurados: Argentina `100446943`,
+México `103323778`, Colombia `100876405`, Chile `104621616`, Uruguay `100867946`,
+España `105646813`, Estados Unidos `103644278`. Para conseguir otro, buscá empleos en LinkedIn con
+esa ubicación y copiá el `geoId=` de la URL.
+
+`remote_only` **no** se puede delegar en LinkedIn (su filtro `f_WT` se ignora en el endpoint
+público), así que se resuelve de dos maneras: `keywords_extra` agrega "remoto"/"remote" a la
+búsqueda para que priorice esos avisos, y después se descarta todo lo que la descripción no
+confirme como remoto.
 
 ### `filters` — qué se descarta y cómo se puntúa
 
@@ -188,7 +230,10 @@ propio `filters` pisa la clave correspondiente (en la práctica, `must_match`).
 | `intent_signals`          | señales de que **están ofreciendo trabajo** ("buscamos", "vacante", "estamos contratando", "postulate", "envía tu cv"…). Suman `intent_weight` (2) cada una y se buscan como palabra completa. |
 | `require_intent`          | `true` (por defecto): una publicación sin ninguna señal de intención se descarta — es una nota, marketing o "empecé un nuevo puesto", no una oferta. Los empleos están exentos: ya vienen de la sección Empleos. |
 | `context_signals`         | palabras que *pintan* un aviso pero no implican que contraten ("remoto", "backend", "spring", "requisitos", "beneficios"…). Suman `context_weight` (1), la mitad que las de intención, para que un post técnico no compita con una oferta real. |
-| `seeker_signals`          | frases típicas de quien *busca* trabajo ("open to work", "mi cv"…); cada una resta `seeker_penalty` puntos (4) y agrega el badge *BUSCA EMPLEO*. |
+| `seeker_signals`          | frases típicas de quien *busca* trabajo ("open to work", "mi cv"…): cada una resta `seeker_penalty` puntos (6), **anulan el bonus de `cv_skills`** y agregan el badge *BUSCA EMPLEO*. El bonus se anula a propósito: un candidato con tu mismo stack coincide con tu CV justamente porque compite por los mismos puestos. Con `drop_seekers: true` se descartan directamente. |
+| `cv_skills`               | tus tecnologías en tres niveles: `core` (Java, Spring Boot, microservicios, JPA…), `stack` (PostgreSQL, Kafka, RabbitMQ, Docker, JUnit, Testcontainers, CQRS, saga…) y `extra` (Python, Node, Redis, AWS, Kubernetes…). Suman `cv_weights` (3 / 2 / 1) por coincidencia, hasta `cv_max_per_tier` (4) por nivel, así un aviso que lista 20 tecnologías no se come el ranking. El badge *CV +N* muestra cuánto sumó. |
+| `level_fit`               | términos de seniority que te sirven (junior, jr, ssr, semi senior, trainee, sin experiencia, primer empleo…): suman `level_fit_bonus` (3). Complementa a `exclude_content`, que descarta los Senior. |
+| `location_fit`            | **Argentina** (presencial, híbrido o remoto) suma `home_bonus` (10); **remoto** en cualquier lado suma `remote_bonus` (4); el **exterior no remoto** resta `foreign_onsite_penalty` (15). En empleos, donde la ubicación y la modalidad son confiables, `drop_foreign_onsite_jobs` los descarta directamente; en publicaciones solo se penalizan (`drop_foreign_onsite_posts: false`), porque ahí la ubicación se deduce del texto. |
 
 ### `browser` y `output`
 
@@ -210,7 +255,7 @@ buscar-trabajo/
 └── scraper/
     ├── browser.py       # Chrome con perfil persistente, detección de sesión, scroll, dumps
     ├── posts.py         # búsqueda de publicaciones (UI nueva + fallback UI vieja)
-    ├── jobs.py          # sección Empleos con paginación
+    ├── jobs.py          # sección Empleos vía el endpoint público (sin navegador) + detalle de cada aviso
     ├── filters.py       # must_match / exclusiones / idioma / puntaje
     ├── lang.py          # detector de idioma es/pt/en sin dependencias (texto largo y títulos)
     ├── timeparse.py     # "2 h" / "Hace 27 minutos" / "2026-09-16" -> hora absoluta (posted_at)
@@ -225,6 +270,7 @@ Archivos generados (ignorados por git):
 data/
 ├── browser_profile/   # sesión de Chrome — contiene tus cookies, NO lo subas a ningún lado
 ├── seen.json          # IDs ya vistos
+├── rotation.json      # en qué búsqueda quedó la rotación de cada perfil
 ├── results/           # un .html y un .json por corrida, más latest.html
 └── debug/             # screenshots/HTML cuando algo falla o con --debug
 ```
@@ -259,8 +305,15 @@ Cómo está armado hoy (UI nueva de LinkedIn, 2026):
   de la barra de comentarios (`…-replaceableCommentTools…`), que es un protobuf en base64 cuyo varint
   más grande vale `2 × activityId`. En posts de grupos el URN viene en la URL del grupo. Si LinkedIn
   sirve la UI vieja, el extractor cae a `data-urn` / `update-components-*`.
-- **Empleos**: tarjetas `[data-job-id]` / `li[data-occludable-job-id]` (con sesión) o `div.base-card`
-  (sin sesión). La lista tiene scroll propio y las tarjetas se renderizan al entrar en pantalla.
+- **Empleos**: ya **no se scrapean del navegador**. En octubre de 2026 LinkedIn rehizo la sección:
+  las tarjetas pasaron a tener clases ofuscadas (`gfllid`, `gflanj`), sin `data-job-id`, sin link y
+  sin id — imposible de parsear de forma estable. En cambio se usa el endpoint público
+  `/jobs-guest/jobs/api/seeMoreJobPostings/search`, que devuelve el HTML clásico
+  (`div.base-card`, `data-entity-urn`, `<time datetime>`), no necesita sesión ni navegador, y acepta
+  `geoId`, `f_TPR` y paginado de a 10. El detalle de cada aviso sale de
+  `/jobs-guest/jobs/api/jobPosting/<id>`, que trae la descripción completa y el nivel de antigüedad.
+  Dos limitaciones de ese endpoint: el filtro de modalidad `f_WT` se ignora (la modalidad se deduce
+  del título y la descripción) y el parámetro `location` por texto tampoco — hay que usar `geoId`.
 - **Scroll**: en la UI nueva la página no scrollea por la ventana sino por un contenedor
   (`main#workspace`); se scrollea ese contenedor y además se envía rueda del mouse, que es lo que
   dispara la carga infinita.
@@ -274,6 +327,35 @@ Cómo está armado hoy (UI nueva de LinkedIn, 2026):
 - **Fechas**: LinkedIn solo muestra tiempos relativos ("2 h", "Hace 27 minutos"); se convierten a
   hora absoluta usando el momento del scraping como referencia y quedan en `posted_at` (JSON) para
   poder ordenar. En empleos el `<time>` trae solo la fecha, así que se prefiere el pie de la tarjeta.
+
+## Si LinkedIn pausa tu búsqueda
+
+Si hacés demasiadas búsquedas seguidas, LinkedIn corta la búsqueda de la cuenta con el cartel
+*"Nuestros sistemas han detectado tráfico de búsqueda inusual proveniente de tu cuenta"*. Es
+temporal (se destraba en un rato), pero conviene no forzarlo. La app lo detecta y corta la corrida
+con un mensaje claro en vez de llenar el reporte de búsquedas vacías.
+
+Qué hace la app cuando pasa:
+
+1. Lo detecta **apenas carga la página** (no espera el timeout) y corta las publicaciones.
+2. **Conserva lo que ya había juntado** en esa corrida.
+3. **Sigue con los empleos**, que usan el endpoint público y no dependen de tu cuenta.
+4. Genera el reporte igual y avisa en el resumen que faltan publicaciones.
+
+Así que si lo ves, **no hace falta cortar la corrida**: dejala terminar y vas a tener el reporte con
+los empleos y las publicaciones que alcanzó a traer.
+
+Para que pase lo menos posible, cada corrida usa solo un tramo de las búsquedas
+(`posts.max_urls_per_run`, por defecto 4 de 7) y la siguiente continúa desde donde quedó. Como la
+ventana de scrapeo es de una semana, lo que hoy no se busca aparece igual mañana: se hacen la mitad
+de búsquedas sin perder nada. El estado de la rotación vive en `data/rotation.json`.
+
+Si aun así te pasa seguido:
+
+- **`--only jobs`** no toca la búsqueda de tu cuenta: siempre funciona.
+- Correr **un perfil por vez** (`--search java` un día, `--search soporte` otro).
+- Bajar `posts.max_urls_per_run` o `posts.max_scrolls` (viene en 4).
+- Subir `posts.pause_between` (viene en 10-20 segundos entre búsquedas).
 
 ## Aviso
 
